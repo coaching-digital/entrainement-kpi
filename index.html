@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>KPI Trainer NDRC</title>
+
+<style>
+
+body{
+font-family:Arial, sans-serif;
+background:#eef2f7;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+margin:0;
+}
+
+.container{
+background:white;
+padding:40px;
+border-radius:10px;
+width:720px;
+text-align:center;
+box-shadow:0 10px 25px rgba(0,0,0,0.1);
+}
+
+button{
+padding:12px 20px;
+margin:10px;
+border:none;
+border-radius:6px;
+background:#2f6fed;
+color:white;
+font-size:16px;
+cursor:pointer;
+}
+
+button:hover{
+background:#1c4db5;
+}
+
+.choice-buttons{
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+}
+
+.statement-card{
+background:#f9fbff;
+border-left:6px solid #2f6fed;
+padding:20px;
+margin:20px 0;
+border-radius:8px;
+box-shadow:0 5px 15px rgba(0,0,0,0.05);
+text-align:left;
+}
+
+.statement-title{
+font-weight:bold;
+margin-bottom:10px;
+font-size:18px;
+}
+
+.data-row{
+display:flex;
+justify-content:space-between;
+padding:8px 0;
+border-bottom:1px solid #eee;
+}
+
+.data-value{
+font-weight:bold;
+color:#2f6fed;
+}
+
+.question-box{
+margin-top:20px;
+padding:15px;
+background:white;
+border-radius:6px;
+border:1px solid #ddd;
+font-weight:bold;
+}
+
+.result{
+margin-top:20px;
+font-weight:bold;
+font-size:18px;
+}
+
+input, select{
+padding:10px;
+font-size:16px;
+width:220px;
+text-align:center;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- IDENTIFICATION -->
+
+<div id="studentModal">
+
+<h2>Identifie-toi</h2>
+
+<input id="studentName" placeholder="Nom et prénom">
+
+<br><br>
+
+<select id="studentClass">
+
+<option value="">Choisir la classe</option>
+<option>NDRC1 A</option>
+<option>NDRC1 B</option>
+<option>NDRC2 A</option>
+<option>NDRC2 B</option>
+
+</select>
+
+<br><br>
+
+<button onclick="saveStudent()">Commencer</button>
+
+</div>
+
+
+<!-- THEME -->
+
+<div id="themeMenu" style="display:none">
+
+<h2>Choisis ton thème</h2>
+
+<button onclick="chooseTheme('digital')">Communication digitale</button>
+<button onclick="chooseTheme('crc')">Relation client</button>
+<button onclick="chooseTheme('ecommerce')">E-commerce</button>
+
+</div>
+
+
+<!-- LEVEL -->
+
+<div id="levelMenu" style="display:none">
+
+<h2>Choisis ton niveau</h2>
+
+<button onclick="startLevel(1)">Niveau 1 — Réflexe KPI</button>
+<button onclick="startLevel(2)">Niveau 2 — Analyse</button>
+<button onclick="startLevel(3)">Niveau 3 — Cas entreprise</button>
+
+</div>
+
+
+<!-- GAME -->
+
+<div id="game" style="display:none">
+
+<h2 id="title"></h2>
+
+<div id="question"></div>
+
+<div id="choices" class="choice-buttons"></div>
+
+<div id="calcArea" style="display:none">
+
+<p>Votre réponse (%)</p>
+
+<input id="answer" type="number" step="0.01">
+
+<br>
+
+<button onclick="checkCalculation()">Valider</button>
+
+</div>
+
+<div id="feedback" class="result"></div>
+
+</div>
+
+</div>
+
+
+<script>
+
+let studentName=""
+let studentClass=""
+let theme
+let level
+let currentKPI
+let values=[]
+
+let score=0
+let questionNumber=0
+const totalQuestions=5
+
+
+const themes={
+
+digital:[
+
+{
+name:"Taux d'ouverture",
+vars:["Emails envoyés","Emails ouverts"],
+formula:(v)=>(v[1]/v[0])*100,
+interpret:(v)=> v<15?"Faible":v<25?"Correct":"Excellent",
+explanation:"Emails ouverts / Emails envoyés × 100"
+},
+
+{
+name:"Taux de clic",
+vars:["Emails ouverts","Clics"],
+formula:(v)=>(v[1]/v[0])*100,
+interpret:(v)=> v<2?"Faible":v<5?"Correct":"Excellent",
+explanation:"Clics / Emails ouverts × 100"
+}
+
+],
+
+crc:[
+
+{
+name:"Taux de réclamation",
+vars:["Clients","Réclamations"],
+formula:(v)=>(v[1]/v[0])*100,
+interpret:(v)=> v<2?"Excellent":v<5?"Correct":"Problématique",
+explanation:"Réclamations / Clients × 100"
+}
+
+],
+
+ecommerce:[
+
+{
+name:"Taux de conversion",
+vars:["Visites","Commandes"],
+formula:(v)=>(v[1]/v[0])*100,
+interpret:(v)=> v<1?"Très faible":v<3?"Correct":"Excellent",
+explanation:"Commandes / Visites × 100"
+}
+
+]
+
+}
+
+
+function saveStudent(){
+
+studentName=document.getElementById("studentName").value
+studentClass=document.getElementById("studentClass").value
+
+if(studentName==="" || studentClass===""){
+alert("Merci d'entrer ton nom et ta classe")
+return
+}
+
+document.getElementById("studentModal").style.display="none"
+document.getElementById("themeMenu").style.display="block"
+
+}
+
+
+function chooseTheme(t){
+
+theme=t
+
+document.getElementById("themeMenu").style.display="none"
+document.getElementById("levelMenu").style.display="block"
+
+}
+
+
+function startLevel(l){
+
+level=l
+score=0
+questionNumber=0
+
+document.getElementById("levelMenu").style.display="none"
+document.getElementById("game").style.display="block"
+
+nextQuestion()
+
+}
+
+
+function randomKPI(){
+
+let arr=themes[theme]
+
+return arr[Math.floor(Math.random()*arr.length)]
+
+}
+
+
+function nextQuestion(){
+
+if(questionNumber>=totalQuestions){
+showFinalScore()
+return
+}
+
+questionNumber++
+
+document.getElementById("title").innerText=
+"Niveau "+level+" • Question "+questionNumber+" / "+totalQuestions
+
+document.getElementById("feedback").innerHTML=""
+
+currentKPI=randomKPI()
+
+showIndicators()
+
+}
+
+
+function showIndicators(){
+
+document.getElementById("calcArea").style.display="none"
+
+document.getElementById("question").innerHTML=
+
+`<div class="statement-card">
+
+<div class="statement-title">Indicateurs disponibles</div>
+
+<div class="data-row"><span>${currentKPI.vars[0]}</span></div>
+<div class="data-row"><span>${currentKPI.vars[1]}</span></div>
+
+<div class="question-box">
+Quel KPI peut-on calculer ?
+</div>
+
+</div>`
+
+generateChoices()
+
+}
+
+
+function generateChoices(){
+
+let arr=themes[theme]
+
+let names=arr.map(k=>k.name)
+
+let correct=currentKPI.name
+
+let choices=[correct]
+
+while(choices.length<4){
+
+let random=names[Math.floor(Math.random()*names.length)]
+
+if(!choices.includes(random)) choices.push(random)
+
+}
+
+choices.sort(()=>Math.random()-0.5)
+
+let html=""
+
+choices.forEach(c=>{
+html+=`<button onclick="checkChoice('${c}')">${c}</button>`
+})
+
+document.getElementById("choices").innerHTML=html
+
+}
+
+
+function checkChoice(choice){
+
+if(choice===currentKPI.name){
+
+document.getElementById("feedback").innerHTML="✔ Bonne réponse"
+
+generateNumbers()
+
+}else{
+
+document.getElementById("feedback").innerHTML="❌ Mauvais KPI"
+
+}
+
+}
+
+
+function generateNumbers(){
+
+values=[
+Math.floor(Math.random()*900+100),
+Math.floor(Math.random()*90+10)
+]
+
+document.getElementById("question").innerHTML=
+
+`<div class="statement-card">
+
+<div class="statement-title">Données</div>
+
+<div class="data-row">
+<span>${currentKPI.vars[0]}</span>
+<span class="data-value">${values[0]}</span>
+</div>
+
+<div class="data-row">
+<span>${currentKPI.vars[1]}</span>
+<span class="data-value">${values[1]}</span>
+</div>
+
+<div class="question-box">
+Calculez : ${currentKPI.name}
+</div>
+
+</div>`
+
+document.getElementById("calcArea").style.display="block"
+
+}
+
+
+function checkCalculation(){
+
+let user=parseFloat(document.getElementById("answer").value)
+
+let correct=currentKPI.formula(values)
+
+correct=Math.round(correct*100)/100
+
+if(Math.abs(user-correct)<0.5){
+
+document.getElementById("feedback").innerHTML="✔ Calcul correct"
+
+showInterpretation(correct)
+
+}else{
+
+document.getElementById("feedback").innerHTML=
+"❌ Incorrect<br>"+currentKPI.explanation+"<br>"+correct+" %"
+
+}
+
+}
+
+
+function showInterpretation(value){
+
+let interpretation=currentKPI.interpret(value)
+
+window.correctInterpretation=interpretation
+
+document.getElementById("question").innerHTML=
+
+`<div class="statement-card">
+
+<div class="statement-title">Résultat obtenu</div>
+
+<div class="data-row">
+<span>${currentKPI.name}</span>
+<span class="data-value">${value} %</span>
+</div>
+
+<div class="question-box">
+Comment interpréter ce résultat ?
+</div>
+
+</div>`
+
+document.getElementById("choices").innerHTML=
+
+`
+<button onclick="checkInterpretation('Très faible')">Très faible</button>
+<button onclick="checkInterpretation('Faible')">Faible</button>
+<button onclick="checkInterpretation('Correct')">Correct</button>
+<button onclick="checkInterpretation('Excellent')">Excellent</button>
+<button onclick="checkInterpretation('Problématique')">Problématique</button>
+`
+
+document.getElementById("calcArea").style.display="none"
+
+}
+
+
+function checkInterpretation(choice){
+
+if(choice===window.correctInterpretation){
+
+score++
+
+document.getElementById("feedback").innerHTML="✔ Bonne interprétation"
+
+}else{
+
+document.getElementById("feedback").innerHTML="❌ Mauvaise interprétation"
+
+}
+
+setTimeout(nextQuestion,1500)
+
+}
+
+
+function showFinalScore(){
+
+document.getElementById("question").innerHTML=
+
+`<div class="statement-card">
+
+<div class="statement-title">Résultat final</div>
+
+<div class="data-row">
+<span>Étudiant</span>
+<span class="data-value">${studentName}</span>
+</div>
+
+<div class="data-row">
+<span>Classe</span>
+<span class="data-value">${studentClass}</span>
+</div>
+
+<div class="data-row">
+<span>Score</span>
+<span class="data-value">${score} / ${totalQuestions}</span>
+</div>
+
+</div>`
+
+document.getElementById("choices").innerHTML=""
+document.getElementById("feedback").innerHTML=""
+
+}
+
+</script>
+
+</body>
+</html>
